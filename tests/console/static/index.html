@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PuppyPi Console</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+  <div id="viewport">
+    <img id="camera" alt="PuppyPi camera" />
+    <div id="camera-overlay" class="camera-overlay hidden">摄像头未连接</div>
+  </div>
+
+  <aside id="panel" class="panel">
+    <section class="panel-section">
+      <h2>连接</h2>
+      <div class="connect-row">
+        <input id="robot-host" type="text" spellcheck="false" placeholder="192.168.1.9" autocomplete="off" />
+        <button id="connect-btn" class="btn-connect" type="button">连接</button>
+      </div>
+      <div id="health-line" class="health-line">
+        <span id="health-dot" class="dot"></span>
+        <span id="health-text">检查中…</span>
+      </div>
+      <p id="robot-meta" class="hint"></p>
+    </section>
+
+    <section class="panel-section">
+      <button id="actions-toggle" class="toggle" type="button" aria-expanded="true">
+        指令列表 <span class="chevron">▾</span>
+      </button>
+      <div id="actions-body" class="actions-body">
+        <div id="actions-list" class="actions-list"></div>
+        <div id="actions-resize" class="resize-handle" title="拖拽调整高度"></div>
+      </div>
+    </section>
+
+    <section class="panel-section">
+      <div class="queue-header">
+        <h2>指令队列</h2>
+        <button id="queue-clear" type="button" class="btn-ghost">清空</button>
+      </div>
+      <ul id="queue-list" class="queue-list"></ul>
+      <p id="queue-empty" class="hint">队列为空，点击指令加入</p>
+    </section>
+  </aside>
+
+  <div id="hint-bar" class="hint-bar">官方 ROS · /usb_cam/image_raw · runActionGroup / velocity</div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

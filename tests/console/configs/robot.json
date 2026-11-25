@@ -1,0 +1,10 @@
+{
+  "robot_host": "192.168.1.9",
+  "web_video_port": 8080,
+  "rosbridge_port": 9090,
+  "image_topic": "/usb_cam/image_raw",
+  "run_action_service": "/puppy_control/runActionGroup",
+  "velocity_topic": "/puppy_control/velocity",
+  "run_action_type": "puppy_control/SetRunActionName",
+  "velocity_type": "puppy_control/Velocity"
+}

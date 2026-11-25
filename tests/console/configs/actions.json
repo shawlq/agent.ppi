@@ -1,0 +1,162 @@
+{
+  "actions": [
+    {
+      "action": "站立",
+      "function": "stand",
+      "kind": "action_group",
+      "ros_name": "stand",
+      "cost_time_sec": 1.5,
+      "params": []
+    },
+    {
+      "action": "坐下",
+      "function": "sit",
+      "kind": "action_group",
+      "ros_name": "sit",
+      "cost_time_sec": 2.0,
+      "params": []
+    },
+    {
+      "action": "前进一步",
+      "function": "forward",
+      "kind": "velocity",
+      "cost_time_sec": 2.0,
+      "velocity": { "x": 5.0, "y": 0.0, "yaw_rate_deg": 0.0 },
+      "params": []
+    },
+    {
+      "action": "后退一步",
+      "function": "back",
+      "kind": "velocity",
+      "cost_time_sec": 2.0,
+      "velocity": { "x": -5.0, "y": 0.0, "yaw_rate_deg": 0.0 },
+      "params": []
+    },
+    {
+      "action": "左转",
+      "function": "turn_left",
+      "kind": "velocity",
+      "cost_time_sec": 2.0,
+      "velocity": { "x": -5.0, "y": 0.0, "yaw_rate_deg": 30.0 },
+      "params": [
+        {
+          "name": "angle_deg",
+          "label": "角度",
+          "type": "number",
+          "default": 90
+        }
+      ]
+    },
+    {
+      "action": "右转",
+      "function": "turn_right",
+      "kind": "velocity",
+      "cost_time_sec": 2.0,
+      "velocity": { "x": -5.0, "y": 0.0, "yaw_rate_deg": -30.0 },
+      "params": [
+        {
+          "name": "angle_deg",
+          "label": "角度",
+          "type": "number",
+          "default": 90
+        }
+      ]
+    },
+    {
+      "action": "拳击",
+      "function": "boxing",
+      "kind": "action_group",
+      "ros_name": "boxing",
+      "cost_time_sec": 5.0,
+      "params": []
+    },
+    {
+      "action": "俯卧撑",
+      "function": "push_up",
+      "kind": "action_group",
+      "ros_name": "push-up01",
+      "cost_time_sec": 8.0,
+      "params": []
+    },
+    {
+      "action": "握手",
+      "function": "shake_hands",
+      "kind": "action_group",
+      "ros_name": "shake_hands",
+      "cost_time_sec": 4.0,
+      "params": []
+    },
+    {
+      "action": "单手握手",
+      "function": "shake_hand",
+      "kind": "action_group",
+      "ros_name": "shake_hand",
+      "cost_time_sec": 4.0,
+      "params": []
+    },
+    {
+      "action": "点头",
+      "function": "nod",
+      "kind": "action_group",
+      "ros_name": "nod",
+      "cost_time_sec": 2.0,
+      "params": []
+    },
+    {
+      "action": "招手",
+      "function": "wave",
+      "kind": "action_group",
+      "ros_name": "wave",
+      "cost_time_sec": 3.0,
+      "params": []
+    },
+    {
+      "action": "左脚踢球",
+      "function": "kick_ball_left",
+      "kind": "action_group",
+      "ros_name": "kick_ball_left",
+      "cost_time_sec": 3.0,
+      "params": []
+    },
+    {
+      "action": "右脚踢球",
+      "function": "kick_ball_right",
+      "kind": "action_group",
+      "ros_name": "kick_ball_right",
+      "cost_time_sec": 3.0,
+      "params": []
+    },
+    {
+      "action": "太空步",
+      "function": "moonwalk",
+      "kind": "action_group",
+      "ros_name": "moonwalk",
+      "cost_time_sec": 8.0,
+      "params": []
+    },
+    {
+      "action": "趴下",
+      "function": "lie_down",
+      "kind": "action_group",
+      "ros_name": "lie_down",
+      "cost_time_sec": 2.0,
+      "params": []
+    },
+    {
+      "action": "伸懒腰",
+      "function": "temp",
+      "kind": "action_group",
+      "ros_name": "temp",
+      "cost_time_sec": 4.0,
+      "params": []
+    },
+    {
+      "action": "鞠躬",
+      "function": "bow",
+      "kind": "action_group",
+      "ros_name": "bow",
+      "cost_time_sec": 3.0,
+      "params": []
+    }
+  ]
+}
