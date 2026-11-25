@@ -1,0 +1,96 @@
+{
+  "name": "living_room",
+  "units": "m",
+  "floor": {
+    "size": [8, 8],
+    "color": "#d2b48c"
+  },
+  "walls": [
+    { "axis": "z", "pos": -4, "size": [8, 2.8], "color": "#f5f0e8" },
+    { "axis": "z", "pos": 4, "size": [8, 2.8], "color": "#f0ebe3" },
+    { "axis": "x", "pos": -4, "size": [8, 2.8], "color": "#efe9df" },
+    { "axis": "x", "pos": 4, "size": [8, 2.8], "color": "#efe9df" }
+  ],
+  "objects": [
+    {
+      "id": "sofa1",
+      "type": "sofa",
+      "position": [0, 0, 2.8],
+      "rotation_y": 3.1416,
+      "color": "#3d5a80"
+    },
+    {
+      "id": "coffee1",
+      "type": "coffee_table",
+      "position": [0, 0, 1.5],
+      "rotation_y": 0,
+      "color": "#8b5a2b"
+    },
+    {
+      "id": "tea1",
+      "type": "tea_set",
+      "position": [0, 0.42, 1.5],
+      "rotation_y": 0
+    },
+    {
+      "id": "table1",
+      "type": "table",
+      "position": [-2.5, 0, -1.5],
+      "rotation_y": 0,
+      "color": "#a0522d"
+    },
+    {
+      "id": "chair1",
+      "type": "chair",
+      "position": [-2.5, 0, -0.6],
+      "rotation_y": 3.1416,
+      "color": "#6b4f3a"
+    },
+    {
+      "id": "chair2",
+      "type": "chair",
+      "position": [-3.3, 0, -1.5],
+      "rotation_y": 1.5708,
+      "color": "#6b4f3a"
+    },
+    {
+      "id": "chair3",
+      "type": "chair",
+      "position": [-1.7, 0, -1.5],
+      "rotation_y": -1.5708,
+      "color": "#6b4f3a"
+    },
+    {
+      "id": "bench1",
+      "type": "bench",
+      "position": [2.2, 0, 2.5],
+      "rotation_y": -0.4,
+      "color": "#7a5c45"
+    },
+    {
+      "id": "tv1",
+      "type": "tv",
+      "position": [0, 0, -3.6],
+      "rotation_y": 0
+    },
+    {
+      "id": "cabinet1",
+      "type": "cabinet",
+      "position": [3.2, 0, -2.2],
+      "rotation_y": -1.5708,
+      "color": "#5c4033"
+    },
+    {
+      "id": "cabinet2",
+      "type": "cabinet",
+      "position": [-3.2, 0, 2.5],
+      "rotation_y": 1.5708,
+      "color": "#4a3728"
+    }
+  ],
+  "robot": {
+    "position": [0.5, 0, 0],
+    "rotation_y": 0,
+    "scale": 1.0
+  }
+}

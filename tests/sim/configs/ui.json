@@ -1,0 +1,8 @@
+{
+  "focus_height_m": 1.7,
+  "camera_distance": 4.5,
+  "step_length_m": 0.4,
+  "collision_radius_m": 0.28,
+  "collision_head_on_deg": 40,
+  "collision_steer_rate": 2.2
+}

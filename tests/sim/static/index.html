@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PuppyPi 家庭场景 3D 仿真</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <aside id="panel" class="panel">
+    <section class="panel-section">
+      <h2>配置</h2>
+      <label class="field">
+        <span>焦点高度 (m)</span>
+        <input id="focus-height" type="number" step="0.1" min="0.5" max="3" value="1.7" />
+      </label>
+    </section>
+
+    <section class="panel-section">
+      <button id="actions-toggle" class="toggle" type="button" aria-expanded="true">
+        指令列表 <span class="chevron">▾</span>
+      </button>
+      <div id="actions-body" class="actions-body">
+        <div id="actions-list" class="actions-list"></div>
+      </div>
+    </section>
+
+    <section class="panel-section">
+      <div class="queue-header">
+        <h2>指令队列</h2>
+        <button id="queue-clear" type="button" class="btn-ghost">清空</button>
+      </div>
+      <ul id="queue-list" class="queue-list"></ul>
+      <p id="queue-empty" class="hint">队列为空，点击指令加入</p>
+    </section>
+  </aside>
+
+  <div id="hint-bar" class="hint-bar">拖拽旋转 · 双击地面移动焦点 · 滚轮缩放</div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

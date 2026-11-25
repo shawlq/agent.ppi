@@ -1,0 +1,130 @@
+{
+  "actions": [
+    {
+      "action": "站立",
+      "function": "stand",
+      "cost_time_sec": 1.5,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "前进一步",
+      "function": "forward",
+      "cost_time_sec": 1.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "后退一步",
+      "function": "back",
+      "cost_time_sec": 1.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "左转",
+      "function": "turn_left",
+      "cost_time_sec": 1.5,
+      "scene": "所有",
+      "params": [
+        {
+          "name": "angle_deg",
+          "label": "角度",
+          "type": "number",
+          "default": 90
+        }
+      ]
+    },
+    {
+      "action": "右转",
+      "function": "turn_right",
+      "cost_time_sec": 1.5,
+      "scene": "所有",
+      "params": [
+        {
+          "name": "angle_deg",
+          "label": "角度",
+          "type": "number",
+          "default": 90
+        }
+      ]
+    },
+    {
+      "action": "拳击",
+      "function": "boxing",
+      "cost_time_sec": 5.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "俯卧撑",
+      "function": "push_up",
+      "cost_time_sec": 8.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "握手",
+      "function": "shake_hands",
+      "cost_time_sec": 4.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "点头",
+      "function": "nod",
+      "cost_time_sec": 2.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "坐下",
+      "function": "sit",
+      "cost_time_sec": 2.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "左脚踢球",
+      "function": "kick_ball_left",
+      "cost_time_sec": 3.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "右脚踢球",
+      "function": "kick_ball_right",
+      "cost_time_sec": 3.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "太空步",
+      "function": "moonwalk",
+      "cost_time_sec": 8.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "趴下",
+      "function": "lie_down",
+      "cost_time_sec": 2.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "伸懒腰",
+      "function": "temp",
+      "cost_time_sec": 4.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "鞠躬",
+      "function": "bow",
+      "cost_time_sec": 3.0,
+      "scene": "所有",
+      "params": []
+    }
+  ]
+}
