@@ -17,6 +17,25 @@ ACTION_GROUP_ALIASES: dict[str, str] = {
     "push_up": "push-up01",
 }
 
+# Official puppy_demo.py / function_call.py: Stand + Trot before velocity.
+# puppy_control boots in LieDown (height=-5); velocity alone walks while prone.
+_STAND_POSE: dict[str, float] = {
+    "roll": 0.0,
+    "pitch": 0.0,
+    "yaw": 0.0,
+    "height": -10.0,
+    "x_shift": -0.6,
+    "stance_x": 0.0,
+    "stance_y": 0.0,
+    "run_time": 500,
+}
+_TROT_GAIT: dict[str, float] = {
+    "overlap_time": 0.2,
+    "swing_time": 0.3,
+    "clearance_time": 0.0,
+    "z_clearance": 5.0,
+}
+
 MessageCallback = Callable[[str, dict[str, Any]], None]
 
 # Tiny placeholder JPEG for mock image stream (need not decode).
@@ -231,15 +250,25 @@ class RosbridgeClient(_ImagePollMixin, AgentClient):
         self.run_action_service = topics.get(
             "run_action_service", "/puppy_control/runActionGroup"
         )
+        self.go_home_service = topics.get(
+            "go_home_service", "/puppy_control/go_home"
+        )
         self.velocity_topic = topics.get("velocity", "/puppy_control/velocity")
+        self.pose_topic = topics.get("pose", "/puppy_control/pose")
+        self.gait_topic = topics.get("gait", "/puppy_control/gait")
         self.run_action_type = types.get(
             "run_action", "puppy_control/SetRunActionName"
         )
+        self.go_home_type = types.get("go_home", "std_srvs/Empty")
         self.velocity_type = types.get("velocity", "puppy_control/Velocity")
+        self.pose_type = types.get("pose", "puppy_control/Pose")
+        self.gait_type = types.get("gait", "puppy_control/Gait")
         self._ros = None
         self._lock = asyncio.Lock()
         self._callbacks: dict[str, MessageCallback] = {}
         self._tasks: dict[str, asyncio.Task[Any]] = {}
+        # Stand+Trot applied once until action_group / reconnect (avoid go_home thrash).
+        self._walk_stance_ready = False
 
     def _ws_url(self) -> str:
         return f"ws://{self.host}:{self.port}"
@@ -279,6 +308,7 @@ class RosbridgeClient(_ImagePollMixin, AgentClient):
             return ros
 
         self._ros = await asyncio.to_thread(_connect_sync)
+        self._walk_stance_ready = False
         logger.info("ppi Rosbridge connected %s", self._ws_url())
 
     async def close(self, shutdown_reactor: bool = True) -> None:
@@ -287,6 +317,7 @@ class RosbridgeClient(_ImagePollMixin, AgentClient):
 
         ros = self._ros
         self._ros = None
+        self._walk_stance_ready = False
         if ros is None:
             return
 
@@ -330,6 +361,8 @@ class RosbridgeClient(_ImagePollMixin, AgentClient):
             except ConnectionError:
                 await self.connect()
             if kind == "action_group":
+                # Action groups move servos outside PuppyPose; re-arm walk stance.
+                self._walk_stance_ready = False
                 return await self._run_action_group(action_def)
             if kind == "velocity":
                 return await self._run_velocity(action_def, params)
@@ -364,48 +397,72 @@ class RosbridgeClient(_ImagePollMixin, AgentClient):
             "result": result,
         }
 
-    def _merge_params(
-        self, action_def: dict[str, Any], params: dict[str, Any]
-    ) -> dict[str, Any]:
-        merged: dict[str, Any] = {}
-        for p in action_def.get("params") or []:
-            name = p.get("name")
-            if name and "default" in p:
-                merged[name] = p["default"]
-        merged.update(params)
-        return merged
+    def _publish_once(
+        self, topic_name: str, msg_type: str, payload: dict[str, Any]
+    ) -> None:
+        import roslibpy  # type: ignore
+
+        ros = self._ensure()
+        topic = roslibpy.Topic(ros, topic_name, msg_type)
+        topic.advertise()
+        topic.publish(roslibpy.Message(payload))
+        time.sleep(0.05)
+        topic.unadvertise()
+
+    def _ensure_walk_stance_sync(self) -> None:
+        """Publish Stand+Trot once (official puppy_demo), without go_home thrash.
+
+        puppy_control boots in LieDown; VelocityFun reuses that pose → 趴下迈步.
+        Calling go_home/pose every turn causes large gait swings and overshoot.
+        """
+        if self._walk_stance_ready:
+            return
+        # Soft stand: no run_time stop pulse (avoids main-vs-current posture jerk).
+        pose = dict(_STAND_POSE)
+        pose["run_time"] = 0
+        self._publish_once(self.pose_topic, self.pose_type, pose)
+        self._publish_once(self.gait_topic, self.gait_type, dict(_TROT_GAIT))
+        time.sleep(0.15)
+        self._walk_stance_ready = True
 
     async def _run_velocity(
         self, action_def: dict[str, Any], params: dict[str, Any]
     ) -> dict[str, Any]:
-        import roslibpy  # type: ignore
+        # Align with main tests/console/ros_client.py:
+        # velocity from action_def.velocity; angle_deg only from explicit params.
+        vel = dict(action_def.get("velocity") or {})
+        if "x" in params:
+            vel["x"] = float(params["x"])
+        if "y" in params:
+            vel["y"] = float(params["y"])
+        if "yaw_rate_deg" in params:
+            vel["yaw_rate_deg"] = float(params["yaw_rate_deg"])
 
-        ros = self._ensure()
-        merged = self._merge_params(action_def, params)
-        x = float(merged.get("x", 0.0))
-        y = float(merged.get("y", 0.0))
-        yaw_deg = float(merged.get("yaw_rate_deg", 0.0))
+        x = float(vel.get("x", 0.0))
+        y = float(vel.get("y", 0.0))
+        yaw_deg = float(vel.get("yaw_rate_deg", 0.0))
         yaw_rate = math.radians(yaw_deg)
+        # Open-loop turn timing: do NOT use angle/yaw_rate_deg.
+        # That formula assumes the body tracks nominal °/s exactly; on PuppyPi
+        # (x=-5 + yaw) 90/30=3s was measured ~180°. Treat cost_time_sec as the
+        # calibrated duration for a 90° turn, then scale by angle/90.
         cost = float(action_def.get("cost_time_sec") or 2.0)
-        if "angle_deg" in merged and abs(yaw_deg) > 1e-6:
-            angle = abs(float(merged["angle_deg"]))
-            rate_mag = abs(yaw_deg)
-            cost = max(0.2, angle / rate_mag)
+        if "angle_deg" in params:
+            angle = abs(float(params["angle_deg"]))
+            cost = max(0.2, cost * (angle / 90.0))
 
-        def _publish(vx: float, vy: float, yaw: float) -> None:
-            topic = roslibpy.Topic(
-                ros,
+        await asyncio.to_thread(self._ensure_walk_stance_sync)
+
+        def _publish_vel(vx: float, vy: float, yaw: float) -> None:
+            self._publish_once(
                 self.velocity_topic,
                 self.velocity_type,
+                {"x": vx, "y": vy, "yaw_rate": yaw},
             )
-            topic.advertise()
-            topic.publish(roslibpy.Message({"x": vx, "y": vy, "yaw_rate": yaw}))
-            time.sleep(0.05)
-            topic.unadvertise()
 
-        await asyncio.to_thread(_publish, x, y, yaw_rate)
+        await asyncio.to_thread(_publish_vel, x, y, yaw_rate)
         await asyncio.sleep(cost)
-        await asyncio.to_thread(_publish, 0.0, 0.0, 0.0)
+        await asyncio.to_thread(_publish_vel, 0.0, 0.0, 0.0)
         return {
             "ok": True,
             "mode": "ros",

@@ -6,12 +6,18 @@
   "topics": {
     "image": "/usb_cam/image_raw",
     "velocity": "/puppy_control/velocity",
-    "run_action_service": "/puppy_control/runActionGroup"
+    "pose": "/puppy_control/pose",
+    "gait": "/puppy_control/gait",
+    "run_action_service": "/puppy_control/runActionGroup",
+    "go_home_service": "/puppy_control/go_home"
   },
   "message_types": {
     "image": "sensor_msgs/Image",
     "velocity": "puppy_control/Velocity",
-    "run_action": "puppy_control/SetRunActionName"
+    "pose": "puppy_control/Pose",
+    "gait": "puppy_control/Gait",
+    "run_action": "puppy_control/SetRunActionName",
+    "go_home": "std_srvs/Empty"
   },
   "actions": [
     {
@@ -36,11 +42,8 @@
       "kind": "velocity",
       "cost_time_sec": 2.0,
       "scene": "所有",
-      "params": [
-        { "name": "x", "label": "x", "type": "number", "default": 5.0 },
-        { "name": "y", "label": "y", "type": "number", "default": 0.0 },
-        { "name": "yaw_rate_deg", "label": "yaw", "type": "number", "default": 0.0 }
-      ]
+      "velocity": { "x": 5.0, "y": 0.0, "yaw_rate_deg": 0.0 },
+      "params": []
     },
     {
       "action": "后退一步",
@@ -48,36 +51,29 @@
       "kind": "velocity",
       "cost_time_sec": 2.0,
       "scene": "所有",
-      "params": [
-        { "name": "x", "label": "x", "type": "number", "default": -5.0 },
-        { "name": "y", "label": "y", "type": "number", "default": 0.0 },
-        { "name": "yaw_rate_deg", "label": "yaw", "type": "number", "default": 0.0 }
-      ]
+      "velocity": { "x": -5.0, "y": 0.0, "yaw_rate_deg": 0.0 },
+      "params": []
     },
     {
       "action": "左转",
       "function": "turn_left",
       "kind": "velocity",
-      "cost_time_sec": 2.0,
+      "cost_time_sec": 1.5,
       "scene": "所有",
+      "velocity": { "x": -5.0, "y": 0.0, "yaw_rate_deg": 30.0 },
       "params": [
-        { "name": "angle_deg", "label": "角度", "type": "number", "default": 90 },
-        { "name": "x", "label": "x", "type": "number", "default": -5.0 },
-        { "name": "y", "label": "y", "type": "number", "default": 0.0 },
-        { "name": "yaw_rate_deg", "label": "yaw", "type": "number", "default": 30.0 }
+        { "name": "angle_deg", "label": "角度", "type": "number", "default": 90 }
       ]
     },
     {
       "action": "右转",
       "function": "turn_right",
       "kind": "velocity",
-      "cost_time_sec": 2.0,
+      "cost_time_sec": 1.5,
       "scene": "所有",
+      "velocity": { "x": 0.0, "y": 0.0, "yaw_rate_deg": -20.0 },
       "params": [
-        { "name": "angle_deg", "label": "角度", "type": "number", "default": 90 },
-        { "name": "x", "label": "x", "type": "number", "default": -5.0 },
-        { "name": "y", "label": "y", "type": "number", "default": 0.0 },
-        { "name": "yaw_rate_deg", "label": "yaw", "type": "number", "default": -30.0 }
+        { "name": "angle_deg", "label": "角度", "type": "number", "default": 90 }
       ]
     },
     {
