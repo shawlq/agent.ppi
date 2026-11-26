@@ -1,13 +1,19 @@
-"""Validator unit checks (stdlib unittest)."""
+"""sim_agent parse_actions unit checks."""
 
 from __future__ import annotations
 
+import sys
 import unittest
+from pathlib import Path
 
-from src.runtime.validator import ActionValidator, extract_json_array, extract_reason
+AGENT_ROOT = Path(__file__).resolve().parents[1]
+if str(AGENT_ROOT) not in sys.path:
+    sys.path.insert(0, str(AGENT_ROOT))
+
+from parse_actions import extract_json_array, extract_reason, parse_actions
 
 
-class ValidatorTests(unittest.TestCase):
+class ParseActionsTests(unittest.TestCase):
     def setUp(self) -> None:
         self.actions = [
             {"function": "stand", "action": "站立", "params": []},
@@ -19,7 +25,6 @@ class ValidatorTests(unittest.TestCase):
                 ],
             },
         ]
-        self.v = ActionValidator(self.actions, min_actions=1, max_actions=5)
 
     def test_extract_array(self) -> None:
         text = '前置\n[{"function":"stand","params":{}}]\n后置'
@@ -30,7 +35,7 @@ class ValidatorTests(unittest.TestCase):
 
     def test_unknown_function_skipped(self) -> None:
         raw = '[{"function":"fly","params":{}},{"function":"stand","params":{}}]'
-        valid, errors, reason = self.v.parse_and_validate(raw)
+        valid, errors, reason = parse_actions(raw, self.actions, 1, 5)
         self.assertEqual(len(valid), 1)
         self.assertEqual(valid[0]["action_def"]["function"], "stand")
         self.assertTrue(any("unknown" in e for e in errors))
@@ -38,7 +43,7 @@ class ValidatorTests(unittest.TestCase):
 
     def test_number_param_coercion(self) -> None:
         raw = '[{"function":"forward","params":{"x":"3.5"}}]'
-        valid, errors, reason = self.v.parse_and_validate(raw)
+        valid, errors, reason = parse_actions(raw, self.actions, 1, 5)
         self.assertEqual(len(valid), 1)
         self.assertEqual(valid[0]["params"]["x"], 3.5)
         self.assertIsNone(reason)
@@ -49,7 +54,7 @@ class ValidatorTests(unittest.TestCase):
             '"actions":[{"function":"stand","params":{}},'
             '{"function":"forward","params":{"x":2}}]}'
         )
-        valid, errors, reason = self.v.parse_and_validate(raw)
+        valid, errors, reason = parse_actions(raw, self.actions, 1, 5)
         self.assertEqual(reason, "前方有人先站稳")
         self.assertEqual(len(valid), 2)
         self.assertEqual(valid[0]["action_def"]["function"], "stand")

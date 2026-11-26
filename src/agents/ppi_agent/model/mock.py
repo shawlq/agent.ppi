@@ -36,9 +36,12 @@ class MockLLM:
 
     async def complete(self, prompt: str) -> str:
         _ = prompt
-        # Prefer whitelist entries that appear in the fused prompt.
         candidates = ["stand", "sit", "nod", "bow", "forward"]
-        chosen = [fn for fn in candidates if f'"function": "{fn}"' in prompt or f'"{fn}"' in prompt]
+        chosen = [
+            fn
+            for fn in candidates
+            if f'"function": "{fn}"' in prompt or f'"{fn}"' in prompt
+        ]
         if len(chosen) >= 3:
             actions = [{"function": fn, "params": {}} for fn in chosen[:3]]
         else:

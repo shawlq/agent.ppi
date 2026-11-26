@@ -1,4 +1,4 @@
-"""Build VLM/LLM clients from models.json config."""
+"""Build VLM/LLM clients from this agent's models.json."""
 
 from __future__ import annotations
 
@@ -7,14 +7,18 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from src.model_clients import OpenAICompatLLM, OpenAICompatVLM
+
 from .mock import MockLLM, MockVLM
-from .openai_compat import OpenAICompatLLM, OpenAICompatVLM
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_MODELS = Path(__file__).resolve().parent / "models.json"
 
-def load_models_config(path: str | Path) -> dict[str, Any]:
-    with Path(path).open(encoding="utf-8") as f:
+
+def load_models_config(path: str | Path | None = None) -> dict[str, Any]:
+    cfg_path = Path(path) if path else _DEFAULT_MODELS
+    with cfg_path.open(encoding="utf-8") as f:
         return json.load(f)
 
 
