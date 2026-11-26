@@ -145,15 +145,12 @@ def api_debug_latest(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "snapshot": latest})
 
 
-@app.get("/api/debug/image/{kind}")
-def api_debug_image(kind: str, request: Request) -> Response:
+@app.get("/api/debug/image/{name}")
+def api_debug_image(name: str, request: Request) -> Response:
+    if not name or any(ch in name for ch in ("/", "\\", "..", " ")):
+        raise HTTPException(status_code=400, detail="invalid image name")
     rt: RuntimeService = request.app.state.runtime
-    if kind == "cam":
-        data = rt.debug_hub.get_cam_jpeg()
-    elif kind == "df":
-        data = rt.debug_hub.get_df_jpeg()
-    else:
-        raise HTTPException(status_code=404, detail="kind must be cam|df")
+    data = rt.debug_hub.get_image(name)
     if not data:
         raise HTTPException(status_code=404, detail="no image yet")
     return Response(content=data, media_type="image/jpeg")

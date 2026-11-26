@@ -1,23 +1,26 @@
 /**
  * Webviz-style mosaic debug board: binary-tree splits, panel select, close.
- * Layout persisted in localStorage under debug.board.mosaic.
+ * Panels are driven by snapshot.panels keys; render by type only (text|json|image).
+ * Layout persisted in localStorage under debug.board.mosaic.v3.
  */
 
-const STORAGE_KEY = "debug.board.mosaic.v2";
+const STORAGE_KEY = "debug.board.mosaic.v3";
 const MIN_RATIO = 0.15;
 const MAX_RATIO = 0.85;
 
-const PANEL_DEFS = [
-  { id: "cam", title: "Cam" },
-  { id: "df", title: "DF" },
-  { id: "vlm", title: "VLM" },
-  { id: "context", title: "Context" },
-  { id: "prompt", title: "Prompt" },
-  { id: "llm", title: "LLM" },
-  { id: "actions", title: "Actions" },
+/** Fallback Select keys before the first snapshot arrives. */
+const DEFAULT_PANEL_KEYS = [
+  "cam",
+  "df",
+  "vlm",
+  "context",
+  "prompt",
+  "llm",
+  "reason",
+  "actions_valid",
+  "actions_history",
+  "errors",
 ];
-
-const PANEL_TITLE = Object.fromEntries(PANEL_DEFS.map((p) => [p.id, p.title]));
 
 let _idSeq = 0;
 function nextId(prefix = "n") {
@@ -25,7 +28,7 @@ function nextId(prefix = "n") {
   return `${prefix}_${_idSeq}_${Date.now().toString(36)}`;
 }
 
-/** Fresh open: 2×2 mosaic — Cam | DF / VLM | Actions */
+/** Fresh open: 2×2 mosaic — cam | df / vlm | actions_valid */
 function defaultTree() {
   return {
     id: nextId("split"),
@@ -46,7 +49,7 @@ function defaultTree() {
       direction: "row",
       ratio: 0.5,
       first: { id: nextId("leaf"), type: "leaf", panel: "vlm" },
-      second: { id: nextId("leaf"), type: "leaf", panel: "actions" },
+      second: { id: nextId("leaf"), type: "leaf", panel: "actions_valid" },
     },
   };
 }
@@ -92,6 +95,16 @@ function walkLeaves(node, fn) {
   walkLeaves(node.second, fn);
 }
 
+function pretty(v) {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  try {
+    return JSON.stringify(v, null, 2);
+  } catch (_) {
+    return String(v);
+  }
+}
+
 export class DebugBoard {
   /**
    * @param {HTMLElement} host
@@ -99,15 +112,22 @@ export class DebugBoard {
   constructor(host) {
     this.host = host;
     this.root = null;
-    /** @type {Map<string, { el: HTMLElement, body: HTMLElement, titleLabel: HTMLElement, node: object }>} */
+    /** @type {Map<string, { el: HTMLElement, body: HTMLElement, titleLabel: HTMLElement, meta: HTMLElement, node: object }>} */
     this.leaves = new Map();
-    this._camRev = -1;
-    this._dfRev = -1;
     this._lastSnap = null;
     this._openMenu = null;
     this._onDocClick = (ev) => this._handleDocClick(ev);
     this._build();
     document.addEventListener("click", this._onDocClick);
+  }
+
+  _panelKeys() {
+    const panels = this._lastSnap?.panels;
+    if (panels && typeof panels === "object") {
+      const keys = Object.keys(panels);
+      if (keys.length) return keys;
+    }
+    return DEFAULT_PANEL_KEYS;
   }
 
   _build() {
@@ -128,7 +148,6 @@ export class DebugBoard {
       const parsed = JSON.parse(raw);
       if (!parsed || (parsed.type !== "leaf" && parsed.type !== "split")) return null;
       const tree = cloneTree(parsed);
-      // Reject empty / corrupt trees.
       if (!tree || countLeaves(tree) < 1) return null;
       return tree;
     } catch (_) {
@@ -173,13 +192,8 @@ export class DebugBoard {
 
     const ratio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, node.ratio ?? 0.5));
     node.ratio = ratio;
-    if (node.direction === "col") {
-      firstPane.style.flex = `${ratio} 1 0`;
-      secondPane.style.flex = `${1 - ratio} 1 0`;
-    } else {
-      firstPane.style.flex = `${ratio} 1 0`;
-      secondPane.style.flex = `${1 - ratio} 1 0`;
-    }
+    firstPane.style.flex = `${ratio} 1 0`;
+    secondPane.style.flex = `${1 - ratio} 1 0`;
 
     firstPane.appendChild(this._renderNode(node.first));
     secondPane.appendChild(this._renderNode(node.second));
@@ -250,7 +264,7 @@ export class DebugBoard {
 
     const titleLabel = document.createElement("span");
     titleLabel.className = "panel-title";
-    titleLabel.textContent = node.panel ? PANEL_TITLE[node.panel] || node.panel : "Select panel";
+    titleLabel.textContent = node.panel || "Select panel";
 
     const meta = document.createElement("span");
     meta.className = "hint";
@@ -272,7 +286,7 @@ export class DebugBoard {
 
     const body = document.createElement("div");
     body.className = "panel-body";
-    this._fillBody(body, node.panel);
+    this._fillBody(body, node.panel, this._lastSnap?.panels?.[node.panel]);
 
     panel.appendChild(title);
     panel.appendChild(body);
@@ -284,23 +298,27 @@ export class DebugBoard {
     return panel;
   }
 
-  _fillBody(body, panelType) {
+  /**
+   * Scaffold body shell from panel type (or waiting state).
+   * @param {HTMLElement} body
+   * @param {string|null} panelKey
+   * @param {object|null|undefined} panelDesc
+   */
+  _fillBody(body, panelKey, panelDesc) {
     body.innerHTML = "";
-    if (!panelType) {
+    if (!panelKey) {
       const empty = document.createElement("div");
       empty.className = "panel-empty";
       empty.textContent = "点击 ⋮ → Select 选择面板";
       body.appendChild(empty);
       return;
     }
-    if (panelType === "cam" || panelType === "df") {
+    const type = panelDesc?.type;
+    if (type === "image") {
       const img = document.createElement("img");
-      img.alt = panelType;
-      img.dataset.kind = panelType;
+      img.alt = panelKey;
+      img.dataset.panel = panelKey;
       body.appendChild(img);
-      return;
-    }
-    if (panelType === "actions") {
       return;
     }
     const pre = document.createElement("pre");
@@ -334,14 +352,14 @@ export class DebugBoard {
         selectBtn.textContent = "Select ▸";
         const sub = document.createElement("div");
         sub.className = "panel-submenu";
-        for (const def of PANEL_DEFS) {
+        for (const key of this._panelKeys()) {
           const opt = document.createElement("button");
           opt.type = "button";
           opt.className = "panel-menu-item";
-          if (node.panel === def.id) opt.classList.add("active");
-          opt.textContent = def.title;
+          if (node.panel === key) opt.classList.add("active");
+          opt.textContent = key;
           opt.addEventListener("click", () => {
-            this._selectPanel(node.id, def.id);
+            this._selectPanel(node.id, key);
             this._closeMenu();
           });
           sub.appendChild(opt);
@@ -353,7 +371,6 @@ export class DebugBoard {
         selectBtn.addEventListener("click", () => {
           wrap.classList.toggle("open");
           if (wrap.classList.contains("open")) {
-            // Flip submenu left if it would overflow the viewport.
             requestAnimationFrame(() => {
               const subRect = sub.getBoundingClientRect();
               if (subRect.right > window.innerWidth - 8) {
@@ -469,7 +486,7 @@ export class DebugBoard {
     this._render();
   }
 
-  _selectPanel(leafId, panelType) {
+  _selectPanel(leafId, panelKey) {
     const entry = this.leaves.get(leafId);
     let node = entry?.node;
     if (!node) {
@@ -478,14 +495,14 @@ export class DebugBoard {
       });
     }
     if (!node) return;
-    node.panel = panelType;
+    node.panel = panelKey;
     this._saveTree();
 
     if (entry) {
       entry.node = node;
-      entry.titleLabel.textContent = PANEL_TITLE[panelType] || panelType;
-      entry.el.dataset.panel = panelType;
-      this._fillBody(entry.body, panelType);
+      entry.titleLabel.textContent = panelKey;
+      entry.el.dataset.panel = panelKey;
+      this._fillBody(entry.body, panelKey, this._lastSnap?.panels?.[panelKey]);
       if (this._lastSnap) this._paintLeaf(leafId, this._lastSnap);
     } else {
       this._render();
@@ -493,100 +510,86 @@ export class DebugBoard {
   }
 
   /**
-   * Merge sparse events (e.g. kind:"cam") into last snap so text panels
-   * keep their last round content until the next kind:"round" update.
+   * Merge sparse panel patches into last snap; paint only keys present in this event.
    * @param {object} snap
    */
   applySnapshot(snap) {
     if (!snap) return;
 
-    // SSE cam events are sparse ({kind,cam_rev,…}); merged /api/debug/latest may
-    // keep kind:"cam" but still carry round fields — detect by payload shape.
-    const camOnly =
-      snap.kind === "cam" &&
-      snap.prompt === undefined &&
-      snap.llm_raw === undefined &&
-      snap.vlm_raw === undefined;
+    const incoming = snap.panels && typeof snap.panels === "object" ? snap.panels : {};
+    const prev = this._lastSnap || { panels: {} };
+    const mergedPanels = { ...(prev.panels || {}), ...incoming };
 
-    const prev = this._lastSnap || {};
-    if (camOnly) {
-      this._lastSnap = {
-        ...prev,
-        cam_rev: snap.cam_rev,
-        df_rev: snap.df_rev ?? prev.df_rev,
-        stamp: snap.stamp,
-      };
-    } else {
-      this._lastSnap = { ...prev, ...snap };
-    }
+    this._lastSnap = {
+      ...prev,
+      ...snap,
+      panels: mergedPanels,
+    };
 
-    if (typeof this._lastSnap.cam_rev === "number") this._camRev = this._lastSnap.cam_rev;
-    if (typeof this._lastSnap.df_rev === "number") this._dfRev = this._lastSnap.df_rev;
+    const changedKeys = new Set(Object.keys(incoming));
+    const sparse = snap.kind === "cam" || Object.keys(incoming).length < Object.keys(mergedPanels).length;
 
     for (const [leafId, entry] of this.leaves) {
-      const panel = entry.node.panel;
-      if (!panel) continue;
-      if (panel === "cam") {
-        if (typeof snap.cam_rev === "number") this._paintLeaf(leafId, this._lastSnap);
-        continue;
-      }
-      if (panel === "df") {
-        if (!camOnly) this._paintLeaf(leafId, this._lastSnap);
-        continue;
-      }
-      // Text / actions: keep previous DOM until a non-cam-only (round) update.
-      if (!camOnly) this._paintLeaf(leafId, this._lastSnap);
+      const panelKey = entry.node.panel;
+      if (!panelKey) continue;
+      if (sparse && !changedKeys.has(panelKey)) continue;
+      this._paintLeaf(leafId, this._lastSnap);
     }
   }
 
   _paintLeaf(leafId, snap) {
     const entry = this.leaves.get(leafId);
     if (!entry) return;
-    const panel = entry.node.panel;
-    if (!panel) return;
+    const panelKey = entry.node.panel;
+    if (!panelKey) return;
 
-    if (panel === "cam") {
+    const desc = snap?.panels?.[panelKey];
+    if (!desc || typeof desc !== "object") {
+      this._ensureShell(entry, panelKey, null);
+      this._setText(entry, "等待数据…");
+      return;
+    }
+
+    const type = desc.type;
+    this._ensureShell(entry, panelKey, desc);
+
+    if (type === "image") {
       const img = entry.body.querySelector("img");
-      if (img && typeof snap.cam_rev === "number" && snap.cam_rev > 0) {
-        const url = `/api/debug/image/cam?t=${snap.cam_rev}`;
-        if (!img.src.endsWith(`t=${snap.cam_rev}`)) {
+      const rev = typeof desc.rev === "number" ? desc.rev : 0;
+      const srcBase = typeof desc.src === "string" ? desc.src : `/api/debug/image/${panelKey}`;
+      if (img && rev > 0) {
+        const url = `${srcBase}?t=${rev}`;
+        if (!img.src.endsWith(`t=${rev}`)) {
           img.src = url;
         }
+      }
+      if (entry.meta) {
+        entry.meta.textContent = rev > 0 ? `rev ${rev}` : "";
       }
       return;
     }
 
-    if (panel === "df") {
-      const img = entry.body.querySelector("img");
-      if (img && typeof snap.df_rev === "number" && snap.df_rev > 0) {
-        const url = `/api/debug/image/df?t=${snap.df_rev}`;
-        if (!img.src.endsWith(`t=${snap.df_rev}`)) {
-          img.src = url;
-        }
-      }
-      return;
+    if (type === "text") {
+      this._setText(entry, typeof desc.value === "string" ? desc.value : pretty(desc.value));
+    } else if (type === "json") {
+      this._setText(entry, pretty(desc.value));
+    } else {
+      // Unknown type: dump whole descriptor.
+      this._setText(entry, pretty(desc));
     }
 
-    if (panel === "vlm") {
-      this._setText(entry, pretty(snap.vlm_parsed || snap.vlm_raw));
-      return;
+    if (entry.meta && snap.round_id != null && panelKey !== "cam") {
+      entry.meta.textContent = `#${snap.round_id}`;
     }
-    if (panel === "context") {
-      this._setText(entry, pretty(snap.context));
-      return;
-    }
-    if (panel === "prompt") {
-      this._setText(entry, snap.prompt || "");
-      return;
-    }
-    if (panel === "llm") {
-      this._setText(entry, snap.llm_raw || "");
-      return;
-    }
-    if (panel === "actions") {
-      this._setActions(entry, snap);
-      if (entry.meta) entry.meta.textContent = snap.round_id ? `#${snap.round_id}` : "";
-    }
+  }
+
+  _ensureShell(entry, panelKey, desc) {
+    const wantImage = desc?.type === "image";
+    const hasImg = !!entry.body.querySelector("img");
+    const hasPre = !!entry.body.querySelector("pre");
+    if (wantImage && hasImg) return;
+    if (!wantImage && hasPre && !hasImg) return;
+    this._fillBody(entry.body, panelKey, desc);
   }
 
   _setText(entry, text) {
@@ -597,57 +600,5 @@ export class DebugBoard {
       entry.body.appendChild(pre);
     }
     pre.textContent = text || "（空）";
-  }
-
-  _setActions(entry, snap) {
-    const body = entry.body;
-    body.innerHTML = "";
-    const current = document.createElement("div");
-    current.className = "actions-block";
-    current.innerHTML = `<h4>本轮 #${snap.round_id ?? "-"}</h4>`;
-    if (snap.reason) {
-      const why = document.createElement("pre");
-      why.className = "actions-reason";
-      why.textContent = "reason: " + snap.reason;
-      current.appendChild(why);
-    }
-    const pre = document.createElement("pre");
-    pre.textContent = pretty(snap.actions_valid || []);
-    current.appendChild(pre);
-    if (Array.isArray(snap.errors) && snap.errors.length) {
-      const err = document.createElement("pre");
-      err.style.color = "#ef5350";
-      err.textContent = "errors:\n" + snap.errors.join("\n");
-      current.appendChild(err);
-    }
-    body.appendChild(current);
-
-    const hist = Array.isArray(snap.actions_history) ? snap.actions_history : [];
-    for (const h of hist) {
-      if (h.round_id === snap.round_id) continue;
-      const block = document.createElement("div");
-      block.className = "actions-block";
-      block.innerHTML = `<h4>历史 #${h.round_id}</h4>`;
-      if (h.reason) {
-        const why = document.createElement("pre");
-        why.className = "actions-reason";
-        why.textContent = "reason: " + h.reason;
-        block.appendChild(why);
-      }
-      const p = document.createElement("pre");
-      p.textContent = pretty(h.actions || []);
-      block.appendChild(p);
-      body.appendChild(block);
-    }
-  }
-}
-
-function pretty(v) {
-  if (v == null) return "";
-  if (typeof v === "string") return v;
-  try {
-    return JSON.stringify(v, null, 2);
-  } catch (_) {
-    return String(v);
   }
 }
