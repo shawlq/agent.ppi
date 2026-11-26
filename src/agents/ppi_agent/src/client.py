@@ -7,6 +7,7 @@ import logging
 import math
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,14 @@ logger = logging.getLogger(__name__)
 ACTION_GROUP_ALIASES: dict[str, str] = {
     "push_up": "push-up01",
 }
+
+MessageCallback = Callable[[str, dict[str, Any]], None]
+
+# Tiny placeholder JPEG for mock image stream (need not decode).
+_PLACEHOLDER_JPEG = (
+    b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+    b"\xff\xd9"
+)
 
 
 class AgentClient(ABC):
@@ -32,6 +41,97 @@ class AgentClient(ABC):
         self, action_def: dict[str, Any], params: dict[str, Any] | None = None
     ) -> dict[str, Any]: ...
 
+    @abstractmethod
+    async def subscribe_message(
+        self,
+        modality: str,
+        callback: MessageCallback,
+        *,
+        poll_hz: float = 2.0,
+    ) -> None: ...
+
+    @abstractmethod
+    async def unsubscribe_message(self, modality: str) -> None: ...
+
+
+class _ImagePollMixin:
+    """HTTP snapshot polling used by RosbridgeClient (web_video_server)."""
+
+    proxy: dict[str, Any]
+    host: str
+    _callbacks: dict[str, MessageCallback]
+    _tasks: dict[str, asyncio.Task[Any]]
+
+    def _image_snapshot_url(self) -> str:
+        topics = self.proxy.get("topics") or {}
+        topic = topics.get("image", "/usb_cam/image_raw")
+        port = int(self.proxy.get("web_video_port", 8080))
+        host = str(self.proxy.get("ip") or self.host)
+        return f"http://{host}:{port}/snapshot?topic={topic}"
+
+    async def _poll_image_loop(
+        self, callback: MessageCallback, poll_hz: float
+    ) -> None:
+        import httpx
+
+        period = 1.0 / max(poll_hz, 0.1)
+        url = self._image_snapshot_url()
+        topics = self.proxy.get("topics") or {}
+        topic = topics.get("image", "/usb_cam/image_raw")
+        logger.info("ppi image poll start url=%s hz=%.2f", url, poll_hz)
+        while True:
+            try:
+                async with httpx.AsyncClient(timeout=2.0) as http:
+                    r = await http.get(url)
+                    if r.status_code == 200 and r.content:
+                        callback(
+                            "image",
+                            {
+                                "modality": "image",
+                                "stamp": time.time(),
+                                "encoding": "jpeg",
+                                "data": bytes(r.content),
+                                "topic": topic,
+                            },
+                        )
+                    else:
+                        logger.debug(
+                            "ppi snapshot status=%s", r.status_code
+                        )
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.debug("ppi snapshot poll error: %s", e)
+            await asyncio.sleep(period)
+
+    async def subscribe_message(
+        self,
+        modality: str,
+        callback: MessageCallback,
+        *,
+        poll_hz: float = 2.0,
+    ) -> None:
+        modality = modality.strip()
+        await self.unsubscribe_message(modality)
+        self._callbacks[modality] = callback
+        if modality == "image":
+            self._tasks[modality] = asyncio.create_task(
+                self._poll_image_loop(callback, poll_hz),
+                name=f"ppi-sub-{modality}",
+            )
+        else:
+            raise ValueError(f"unsupported modality={modality!r}")
+
+    async def unsubscribe_message(self, modality: str) -> None:
+        self._callbacks.pop(modality, None)
+        task = self._tasks.pop(modality, None)
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
 
 class MockClient(AgentClient):
     """Offline UI / queue demo without a real robot."""
@@ -39,12 +139,16 @@ class MockClient(AgentClient):
     def __init__(self, proxy: dict[str, Any] | None = None) -> None:
         self.proxy = proxy or {}
         self._connected = True
+        self._callbacks: dict[str, MessageCallback] = {}
+        self._tasks: dict[str, asyncio.Task[Any]] = {}
 
     async def connect(self) -> None:
         self._connected = True
         logger.info("ppi MockClient ready")
 
     async def close(self) -> None:
+        for modality in list(self._tasks):
+            await self.unsubscribe_message(modality)
         self._connected = False
 
     async def health(self) -> dict[str, Any]:
@@ -68,8 +172,54 @@ class MockClient(AgentClient):
             "params": params or {},
         }
 
+    async def _mock_image_loop(
+        self, callback: MessageCallback, poll_hz: float
+    ) -> None:
+        period = 1.0 / max(poll_hz, 0.1)
+        topic = (self.proxy.get("topics") or {}).get("image", "/usb_cam/image_raw")
+        while True:
+            callback(
+                "image",
+                {
+                    "modality": "image",
+                    "stamp": time.time(),
+                    "encoding": "jpeg",
+                    "data": _PLACEHOLDER_JPEG,
+                    "topic": topic,
+                },
+            )
+            await asyncio.sleep(period)
 
-class RosbridgeClient(AgentClient):
+    async def subscribe_message(
+        self,
+        modality: str,
+        callback: MessageCallback,
+        *,
+        poll_hz: float = 2.0,
+    ) -> None:
+        modality = modality.strip()
+        await self.unsubscribe_message(modality)
+        self._callbacks[modality] = callback
+        if modality == "image":
+            self._tasks[modality] = asyncio.create_task(
+                self._mock_image_loop(callback, poll_hz),
+                name="ppi-mock-image",
+            )
+        else:
+            raise ValueError(f"unsupported modality={modality!r}")
+
+    async def unsubscribe_message(self, modality: str) -> None:
+        self._callbacks.pop(modality, None)
+        task = self._tasks.pop(modality, None)
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+
+class RosbridgeClient(_ImagePollMixin, AgentClient):
     """Talk to PuppyPi via official rosbridge_websocket (port 9090)."""
 
     def __init__(self, proxy: dict[str, Any]) -> None:
@@ -88,6 +238,8 @@ class RosbridgeClient(AgentClient):
         self.velocity_type = types.get("velocity", "puppy_control/Velocity")
         self._ros = None
         self._lock = asyncio.Lock()
+        self._callbacks: dict[str, MessageCallback] = {}
+        self._tasks: dict[str, asyncio.Task[Any]] = {}
 
     def _ws_url(self) -> str:
         return f"ws://{self.host}:{self.port}"
@@ -130,6 +282,9 @@ class RosbridgeClient(AgentClient):
         logger.info("ppi Rosbridge connected %s", self._ws_url())
 
     async def close(self, shutdown_reactor: bool = True) -> None:
+        for modality in list(self._tasks):
+            await self.unsubscribe_message(modality)
+
         ros = self._ros
         self._ros = None
         if ros is None:
