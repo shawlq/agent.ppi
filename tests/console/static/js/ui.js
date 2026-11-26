@@ -297,9 +297,12 @@ export function setupUI({ queue, onAgentLoaded }) {
         healthDot.classList.add("err");
         healthText.textContent = "未加载 Agent";
       } else if (data.agent === "sim_agent") {
-        if (rosOk) {
+        if (rosOk && videoOk) {
           healthDot.classList.add("ok");
-          healthText.textContent = "sim 网关正常";
+          healthText.textContent = "sim 网关 + 头载相机正常";
+        } else if (rosOk) {
+          healthDot.classList.add("warn");
+          healthText.textContent = "sim 网关正常 · 请打开仿真页以生成摄像头";
         } else {
           healthDot.classList.add("err");
           healthText.textContent = "sim 未连通 · 请先启动 tests/sim";

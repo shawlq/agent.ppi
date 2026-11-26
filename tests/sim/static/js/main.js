@@ -4,6 +4,7 @@ import { buildColliders } from "./CollisionWorld.js";
 import { RobotDog } from "./RobotDog.js";
 import { CameraFocus } from "./CameraFocus.js";
 import { ActionQueue } from "./ActionQueue.js";
+import { DOG_LAYER, HeadCamera } from "./HeadCamera.js";
 import { setupUI } from "./ui.js";
 
 async function fetchJson(url) {
@@ -62,7 +63,17 @@ async function main() {
     robotCfg.rotation_y || 0,
     robotCfg.scale || 1
   );
+  HeadCamera.applyDogLayers(dog);
+  HeadCamera.enableDogOnCamera(camera);
   scene.add(dog.group);
+
+  const headCam = new HeadCamera({
+    renderer,
+    scene,
+    dog,
+    config: uiConfig.head_camera || {},
+  });
+  headCam.start();
 
   const camCtrl = new CameraFocus(camera, renderer.domElement, ground, {
     focusHeight: uiConfig.focus_height_m ?? 1.7,
@@ -72,6 +83,8 @@ async function main() {
   camCtrl.focus.x = dog.group.position.x;
   camCtrl.focus.z = dog.group.position.z;
   camCtrl.updateCamera();
+  // Keep orbit focus marker out of the head-camera layer.
+  camCtrl.marker.traverse((obj) => obj.layers.set(DOG_LAYER));
   scene.add(camCtrl.marker);
 
   const queue = new ActionQueue({
@@ -138,7 +151,10 @@ async function main() {
   window.addEventListener("resize", onResize);
 
   function tick() {
-    dog.update(performance.now());
+    const now = performance.now();
+    dog.update(now);
+    // Capture head view before the main viewport render (shared renderer).
+    headCam.tick(now);
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
   }

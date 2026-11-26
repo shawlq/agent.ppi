@@ -36,7 +36,8 @@ function setupCamera() {
         if (robot.agent === "ppi_agent" && robot.mode !== "mock") {
           overlay.classList.add("hidden");
         } else if (robot.agent === "sim_agent") {
-          showError("仿真模式 · 图像 topic 仅接口对齐");
+          // MJPEG from sim head camera — hide overlay when bytes actually arrived.
+          overlay.classList.add("hidden");
         } else if (!robot.agent) {
           showError("请先加载 Agent");
         } else {
@@ -46,7 +47,16 @@ function setupCamera() {
       .catch(() => overlay.classList.add("hidden"));
   };
   img.onerror = () => {
-    showError("摄像头未连接 · 将自动重试");
+    fetch("/api/robot")
+      .then((r) => r.json())
+      .then((robot) => {
+        if (robot.agent === "sim_agent") {
+          showError("请打开仿真页以生成摄像头画面");
+        } else {
+          showError("摄像头未连接 · 将自动重试");
+        }
+      })
+      .catch(() => showError("摄像头未连接 · 将自动重试"));
     setTimeout(reload, 3000);
   };
   reload();

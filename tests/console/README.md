@@ -15,10 +15,10 @@ pip install -r requirements.txt
 ## 无真机验收（推荐）
 
 1. 另开终端启动仿真：`cd tests/sim && ./service.sh`（:8765）
-2. 打开 console 与 sim 两个页面
-3. Console 右上角选择 `sim_agent` → **加载**
-4. 下拉选择动作 → `+` 入队
-5. Console 状态显示成功；sim 页面同步播放动画
+2. **必须打开** sim 页面（头载相机在浏览器内以 10Hz 渲染并上传）
+3. 打开 console，右上角选择 `sim_agent` → **加载**
+4. Console 摄像头区应显示机器狗前方环境；无画面时提示打开仿真页
+5. 下拉选择动作 → `+` 入队；sim 动画与摄像头画面随姿态变化
 
 ## 真机（ppi_agent）
 
@@ -45,6 +45,6 @@ CONSOLE_MODE=ros ./service.sh
 - `GET /api/robot` / `GET /api/health`
 - `POST /api/connect` — `{ "host" }`
 - `POST /api/action/run` — `{ "function", "params" }`
-- `GET /api/camera/stream` — ppi MJPEG 代理；sim/未加载返回占位图
+- `GET /api/camera/stream` — ppi / sim MJPEG 同源代理（sim 需仿真页打开并发布 `/sim_dog/image_raw`）
 
 环境变量：`CONSOLE_MODE=ros|mock`、`CONSOLE_AGENT=sim_agent`（可选启动即加载）、`HOST`、`PORT`。

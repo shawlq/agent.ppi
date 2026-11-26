@@ -2,6 +2,7 @@
   "name": "sim_agent",
   "ip": "127.0.0.1",
   "sim_http_port": 8765,
+  "web_video_port": 8765,
   "topics": {
     "image": "/sim_dog/image_raw",
     "command": "/sim_dog/command"

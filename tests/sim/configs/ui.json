@@ -4,5 +4,13 @@
   "step_length_m": 0.4,
   "collision_radius_m": 0.28,
   "collision_head_on_deg": 40,
-  "collision_steer_rate": 2.2
+  "collision_steer_rate": 2.2,
+  "head_camera": {
+    "width": 640,
+    "height": 480,
+    "fov_deg": 60,
+    "jpeg_quality": 0.75,
+    "hz": 10,
+    "topic": "/sim_dog/image_raw"
+  }
 }

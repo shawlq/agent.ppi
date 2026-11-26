@@ -55,6 +55,8 @@ class SimAgentClient:
                     "agent": "sim_agent",
                     "ok": ok,
                     "url": url,
+                    "image_ok": bool(data.get("image_ok")),
+                    "image_topic": data.get("image_topic"),
                     "sim": data,
                 }
         except Exception as e:
@@ -64,6 +66,7 @@ class SimAgentClient:
                 "agent": "sim_agent",
                 "ok": False,
                 "url": url,
+                "image_ok": False,
                 "error": str(e),
             }
 

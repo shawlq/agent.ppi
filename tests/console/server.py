@@ -356,22 +356,39 @@ async def api_health(request: Request) -> JSONResponse:
     video_ok = False
     video_url = None
 
-    if agent_name == "sim_agent":
-        # Image topic is declared for interface alignment; no real stream yet.
-        video_ok = bool(ros_info.get("ok"))
-        video_url = f"sim://{image_topic}"
-    elif request.app.state.mode == "mock":
+    if request.app.state.mode == "mock" and agent_name != "sim_agent":
         video_ok = True
         video_url = "/static/img/placeholder.svg"
-    else:
-        web_video_port = robot.get("web_video_port") or 8080
+    elif agent_name in ("ppi_agent", "sim_agent"):
+        web_video_port = (
+            robot.get("web_video_port")
+            or robot.get("sim_http_port")
+            or (8765 if agent_name == "sim_agent" else 8080)
+        )
         video_url = f"http://{host}:{web_video_port}/stream?topic={image_topic}"
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as http:
-                r = await http.get(f"http://{host}:{web_video_port}/")
-                video_ok = r.status_code < 500
-        except Exception:
-            video_ok = False
+        if agent_name == "sim_agent":
+            # Prefer sim health.image_ok (fresh head-camera frame).
+            video_ok = bool(ros_info.get("image_ok"))
+            if not video_ok and ros_info.get("ok"):
+                try:
+                    async with httpx.AsyncClient(timeout=1.0) as http:
+                        r = await http.get(
+                            f"http://{host}:{web_video_port}/api/health"
+                        )
+                        if r.status_code == 200:
+                            video_ok = bool(r.json().get("image_ok"))
+                except Exception:
+                    video_ok = False
+        else:
+            try:
+                async with httpx.AsyncClient(timeout=2.0) as http:
+                    r = await http.get(f"http://{host}:{web_video_port}/")
+                    video_ok = r.status_code < 500
+            except Exception:
+                video_ok = False
+    else:
+        video_ok = False
+        video_url = None
 
     ok = bool(ros_info.get("ok"))
     if agent_name == "ppi_agent" and request.app.state.mode != "mock":
@@ -391,11 +408,18 @@ async def api_health(request: Request) -> JSONResponse:
 
 @app.get("/api/camera/stream")
 async def camera_stream(request: Request):
-    """Proxy official web_video_server MJPEG for same-origin <img>."""
+    """Proxy web_video_server / sim MJPEG for same-origin <img>."""
     agent_name = request.app.state.agent_name
     mode = request.app.state.mode
 
-    if agent_name != "ppi_agent" or mode == "mock" or agent_name is None:
+    if agent_name is None or (mode == "mock" and agent_name != "sim_agent"):
+        return FileResponse(
+            STATIC / "img" / "placeholder.svg",
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "no-cache"},
+        )
+
+    if agent_name not in ("ppi_agent", "sim_agent"):
         return FileResponse(
             STATIC / "img" / "placeholder.svg",
             media_type="image/svg+xml",
@@ -404,9 +428,14 @@ async def camera_stream(request: Request):
 
     robot = request.app.state.robot
     topics = robot.get("topics") or {}
-    image_topic = topics.get("image") or robot.get("image_topic") or "/usb_cam/image_raw"
+    default_topic = (
+        "/sim_dog/image_raw" if agent_name == "sim_agent" else "/usb_cam/image_raw"
+    )
+    image_topic = topics.get("image") or robot.get("image_topic") or default_topic
     host = robot.get("robot_host") or robot.get("ip")
-    port = robot.get("web_video_port") or 8080
+    port = robot.get("web_video_port") or robot.get("sim_http_port") or (
+        8765 if agent_name == "sim_agent" else 8080
+    )
     url = f"http://{host}:{port}/stream?topic={image_topic}"
 
     client = httpx.AsyncClient(timeout=None)
