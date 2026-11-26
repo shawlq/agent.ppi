@@ -1,0 +1,157 @@
+{
+  "name": "sim_agent",
+  "ip": "127.0.0.1",
+  "sim_http_port": 8765,
+  "topics": {
+    "image": "/sim_dog/image_raw",
+    "command": "/sim_dog/command"
+  },
+  "message_types": {
+    "image": "sensor_msgs/Image",
+    "command": "std_msgs/String"
+  },
+  "actions": [
+    {
+      "action": "站立",
+      "function": "stand",
+      "kind": "sim_command",
+      "cost_time_sec": 1.5,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "前进一步",
+      "function": "forward",
+      "kind": "sim_command",
+      "cost_time_sec": 1.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "后退一步",
+      "function": "back",
+      "kind": "sim_command",
+      "cost_time_sec": 1.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "左转",
+      "function": "turn_left",
+      "kind": "sim_command",
+      "cost_time_sec": 1.5,
+      "scene": "所有",
+      "params": [
+        {
+          "name": "angle_deg",
+          "label": "角度",
+          "type": "number",
+          "default": 90
+        }
+      ]
+    },
+    {
+      "action": "右转",
+      "function": "turn_right",
+      "kind": "sim_command",
+      "cost_time_sec": 1.5,
+      "scene": "所有",
+      "params": [
+        {
+          "name": "angle_deg",
+          "label": "角度",
+          "type": "number",
+          "default": 90
+        }
+      ]
+    },
+    {
+      "action": "拳击",
+      "function": "boxing",
+      "kind": "sim_command",
+      "cost_time_sec": 5.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "俯卧撑",
+      "function": "push_up",
+      "kind": "sim_command",
+      "cost_time_sec": 8.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "握手",
+      "function": "shake_hands",
+      "kind": "sim_command",
+      "cost_time_sec": 4.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "点头",
+      "function": "nod",
+      "kind": "sim_command",
+      "cost_time_sec": 2.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "坐下",
+      "function": "sit",
+      "kind": "sim_command",
+      "cost_time_sec": 2.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "左脚踢球",
+      "function": "kick_ball_left",
+      "kind": "sim_command",
+      "cost_time_sec": 3.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "右脚踢球",
+      "function": "kick_ball_right",
+      "kind": "sim_command",
+      "cost_time_sec": 3.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "太空步",
+      "function": "moonwalk",
+      "kind": "sim_command",
+      "cost_time_sec": 8.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "趴下",
+      "function": "lie_down",
+      "kind": "sim_command",
+      "cost_time_sec": 2.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "伸懒腰",
+      "function": "temp",
+      "kind": "sim_command",
+      "cost_time_sec": 4.0,
+      "scene": "所有",
+      "params": []
+    },
+    {
+      "action": "鞠躬",
+      "function": "bow",
+      "kind": "sim_command",
+      "cost_time_sec": 3.0,
+      "scene": "所有",
+      "params": []
+    }
+  ]
+}

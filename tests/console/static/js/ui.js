@@ -1,7 +1,9 @@
 /**
- * Right panel: connect, sim-style action list (resizable), queue.
+ * Right panel: agent load, resizable action list, queue.
  */
-export function setupUI({ actions, robot, queue, onConnected }) {
+import { showToast, formatDetail } from "./toast.js";
+
+export function setupUI({ queue, onAgentLoaded }) {
   const actionsList = document.getElementById("actions-list");
   const actionsToggle = document.getElementById("actions-toggle");
   const actionsBody = document.getElementById("actions-body");
@@ -12,20 +14,103 @@ export function setupUI({ actions, robot, queue, onConnected }) {
   const robotMeta = document.getElementById("robot-meta");
   const healthDot = document.getElementById("health-dot");
   const healthText = document.getElementById("health-text");
-  const hostInput = document.getElementById("robot-host");
-  const connectBtn = document.getElementById("connect-btn");
+  const agentSelect = document.getElementById("agent-select");
+  const agentLoadBtn = document.getElementById("agent-load-btn");
+  const actionStatus = document.getElementById("action-status");
+  const hintBar = document.getElementById("hint-bar");
+
+  /** @type {object[]} */
+  let actions = [];
+  /** @type {object} */
+  let robot = { mode: "?", robot_host: "" };
 
   const HEIGHT_KEY = "console.actionsListHeight";
   const MIN_H = 120;
   const MAX_H = Math.max(200, window.innerHeight - 220);
 
-  hostInput.value = robot.robot_host || "";
-
-  // Restore / apply resizable instruction list height.
   const savedH = Number(localStorage.getItem(HEIGHT_KEY));
   const initH = Number.isFinite(savedH) && savedH >= MIN_H ? savedH : 280;
   actionsList.style.height = `${Math.min(initH, MAX_H)}px`;
   actionsList.style.maxHeight = "none";
+
+  function setStatus(msg, kind) {
+    if (!actionStatus) return;
+    actionStatus.textContent = msg || "";
+    actionStatus.classList.remove("ok", "err");
+    if (kind) actionStatus.classList.add(kind);
+  }
+
+  function visibleParam(action) {
+    const params = Array.isArray(action?.params) ? action.params : [];
+    return params.find((p) => p.name === "angle_deg") || params[0] || null;
+  }
+
+  function fillActions(list) {
+    actions = list || [];
+    actionsList.innerHTML = "";
+    if (!actions.length) {
+      const empty = document.createElement("p");
+      empty.className = "hint";
+      empty.style.padding = "10px";
+      empty.textContent = "无动作（请先加载 Agent）";
+      actionsList.appendChild(empty);
+      return;
+    }
+
+    for (const action of actions) {
+      const row = document.createElement("div");
+      row.className = "action-row";
+
+      const name = document.createElement("div");
+      name.className = "action-name";
+      name.textContent = action.action;
+      name.title = `${action.function} · ${action.cost_time_sec}s`;
+
+      const paramInput = document.createElement("input");
+      paramInput.type = "number";
+      const p = visibleParam(action);
+      const hasParam = !!p;
+      if (hasParam) {
+        paramInput.placeholder = p.label || p.name;
+        paramInput.value = p.default ?? 90;
+        paramInput.title = p.label || p.name;
+      } else {
+        paramInput.disabled = true;
+        paramInput.placeholder = "—";
+        paramInput.title = "无参数";
+      }
+
+      const timesInput = document.createElement("input");
+      timesInput.type = "number";
+      timesInput.min = "1";
+      timesInput.step = "1";
+      timesInput.value = "1";
+      timesInput.title = "执行次数";
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "btn-add";
+      addBtn.textContent = "+";
+      addBtn.title = "加入队列";
+
+      const enqueue = () => {
+        const params = {};
+        if (hasParam) {
+          const raw = Number(paramInput.value);
+          params[p.name] = Number.isFinite(raw) ? raw : p.default ?? 90;
+        }
+        const times = Number(timesInput.value);
+        queue.enqueue(action, params, times);
+        setStatus(`已入队: ${action.action}`, "ok");
+      };
+
+      addBtn.addEventListener("click", enqueue);
+      name.addEventListener("dblclick", enqueue);
+
+      row.append(name, paramInput, timesInput, addBtn);
+      actionsList.appendChild(row);
+    }
+  }
 
   actionsToggle.addEventListener("click", () => {
     const open = actionsToggle.getAttribute("aria-expanded") === "true";
@@ -33,7 +118,6 @@ export function setupUI({ actions, robot, queue, onConnected }) {
     actionsBody.classList.toggle("collapsed", open);
   });
 
-  // Drag handle to resize instruction list.
   if (actionsResize) {
     let dragging = false;
     let startY = 0;
@@ -66,61 +150,6 @@ export function setupUI({ actions, robot, queue, onConnected }) {
     });
   }
 
-  actionsList.innerHTML = "";
-  for (const action of actions) {
-    const row = document.createElement("div");
-    row.className = "action-row";
-
-    const name = document.createElement("div");
-    name.className = "action-name";
-    name.textContent = action.action;
-    name.title = `${action.function} · ${action.cost_time_sec}s`;
-
-    const paramInput = document.createElement("input");
-    paramInput.type = "number";
-    const hasParam = Array.isArray(action.params) && action.params.length > 0;
-    if (hasParam) {
-      const p = action.params[0];
-      paramInput.placeholder = p.label || p.name;
-      paramInput.value = p.default ?? 90;
-      paramInput.title = p.label || p.name;
-    } else {
-      paramInput.disabled = true;
-      paramInput.placeholder = "—";
-      paramInput.title = "无参数";
-    }
-
-    const timesInput = document.createElement("input");
-    timesInput.type = "number";
-    timesInput.min = "1";
-    timesInput.step = "1";
-    timesInput.value = "1";
-    timesInput.title = "执行次数";
-
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "btn-add";
-    addBtn.textContent = "+";
-    addBtn.title = "加入队列";
-
-    const enqueue = () => {
-      const params = {};
-      if (hasParam) {
-        const p = action.params[0];
-        const raw = Number(paramInput.value);
-        params[p.name] = Number.isFinite(raw) ? raw : p.default ?? 90;
-      }
-      const times = Number(timesInput.value);
-      queue.enqueue(action, params, times);
-    };
-
-    addBtn.addEventListener("click", enqueue);
-    name.addEventListener("dblclick", enqueue);
-
-    row.append(name, paramInput, timesInput, addBtn);
-    actionsList.appendChild(row);
-  }
-
   queueClear.addEventListener("click", () => queue.clear());
 
   queue.onChange = (snapshot) => {
@@ -149,7 +178,113 @@ export function setupUI({ actions, robot, queue, onConnected }) {
   };
   queue.onChange(queue.snapshot);
 
-  robotMeta.textContent = `host ${robot.robot_host || "?"} · mode ${robot.mode || "?"}`;
+  queue.onError = (err, item) => {
+    const msg = `${item?.label || ""} ${err.message || err}`.trim();
+    setStatus(`执行失败: ${msg}`, "err");
+    showToast(msg, { title: "动作执行失败", kind: "err" });
+  };
+  queue.onSuccess = (item, result) => {
+    const ok = result && result.ok !== false;
+    setStatus(
+      ok ? `完成: ${item.label}` : `失败: ${item.label}`,
+      ok ? "ok" : "err"
+    );
+  };
+
+  async function refreshAgents() {
+    try {
+      const res = await fetch("/api/agents");
+      const data = await res.json();
+      const list = data.agents || [];
+      const prev = agentSelect.value;
+      agentSelect.innerHTML = "";
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = list.length ? "选择 *_agent…" : "未发现 agent";
+      agentSelect.appendChild(placeholder);
+      for (const a of list) {
+        const opt = document.createElement("option");
+        opt.value = a.name;
+        opt.textContent = a.name;
+        agentSelect.appendChild(opt);
+      }
+      if (prev && list.some((a) => a.name === prev)) {
+        agentSelect.value = prev;
+      } else if (list.some((a) => a.name === "sim_agent")) {
+        agentSelect.value = "sim_agent";
+      }
+    } catch (err) {
+      showToast(String(err.message || err), { title: "列举 Agent 失败", kind: "err" });
+    }
+  }
+
+  async function loadSelectedAgent() {
+    const name = agentSelect.value;
+    if (!name) {
+      showToast("请先在右上角选择 *_agent", { title: "未选择 Agent", kind: "err" });
+      return;
+    }
+    agentLoadBtn.disabled = true;
+    healthText.textContent = `加载 ${name}…`;
+    setStatus(`加载 ${name}…`);
+    try {
+      const res = await fetch("/api/agents/load", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = formatDetail(data.detail || data.message || res.statusText);
+        const title = data.error_kind || "加载 Agent 失败";
+        throw Object.assign(new Error(detail), { title, raw: data });
+      }
+
+      // Connect failure after partial load: backend may return ok:false with connect_error.
+      if (data.ok === false || data.connect_error) {
+        const detail = formatDetail(
+          data.connect_error || data.detail || "连接失败（proxy.ip）"
+        );
+        showToast(detail, {
+          title: data.error_kind || "Agent 连接失败",
+          kind: "err",
+          durationMs: 12000,
+        });
+      }
+
+      robot = data.robot || {};
+      const host = robot.robot_host || robot.ip || "";
+      fillActions((await (await fetch("/api/actions")).json()).actions || []);
+      robotMeta.textContent = `agent ${name} · ip ${host || "?"} · mode ${data.mode || "?"}`;
+      if (hintBar) {
+        hintBar.textContent =
+          name === "sim_agent"
+            ? "sim_agent · /sim_dog/command → 本地仿真"
+            : "ppi_agent · runActionGroup / velocity";
+      }
+      if (!data.connect_error) {
+        setStatus(`已加载 ${name}（${data.actions || 0} 个动作）· ip ${host}`, "ok");
+      } else {
+        setStatus(`已加载 ${name}，但连接失败`, "err");
+      }
+      if (typeof onAgentLoaded === "function") onAgentLoaded(data);
+      await refreshHealth();
+    } catch (err) {
+      healthDot.className = "dot err";
+      healthText.textContent = `加载失败`;
+      const msg = err.message || String(err);
+      setStatus(`加载失败: ${msg}`, "err");
+      showToast(msg, {
+        title: err.title || "加载 Agent 失败",
+        kind: "err",
+        durationMs: 12000,
+      });
+    } finally {
+      agentLoadBtn.disabled = false;
+    }
+  }
+
+  agentLoadBtn.addEventListener("click", loadSelectedAgent);
 
   async function refreshHealth() {
     try {
@@ -158,7 +293,18 @@ export function setupUI({ actions, robot, queue, onConnected }) {
       const rosOk = !!(data.ros && data.ros.ok);
       const videoOk = !!(data.video && data.video.ok);
       healthDot.className = "dot";
-      if (data.mode === "mock") {
+      if (!data.agent) {
+        healthDot.classList.add("err");
+        healthText.textContent = "未加载 Agent";
+      } else if (data.agent === "sim_agent") {
+        if (rosOk) {
+          healthDot.classList.add("ok");
+          healthText.textContent = "sim 网关正常";
+        } else {
+          healthDot.classList.add("err");
+          healthText.textContent = "sim 未连通 · 请先启动 tests/sim";
+        }
+      } else if (data.mode === "mock") {
         healthDot.classList.add("warn");
         healthText.textContent = "mock · 队列可演示，无真机";
       } else if (rosOk && videoOk) {
@@ -171,56 +317,19 @@ export function setupUI({ actions, robot, queue, onConnected }) {
         healthDot.classList.add("err");
         healthText.textContent = "未连接 · 检查机器人与前置节点";
       }
-      const host = data.robot_host || robot.robot_host;
-      robotMeta.textContent = `host ${host} · mode ${data.mode}`;
-      if (document.activeElement !== hostInput && host) {
-        hostInput.value = host;
-      }
-    } catch {
-      healthDot.className = "dot err";
-      healthText.textContent = "health 请求失败";
-    }
-  }
-
-  async function connectRobot() {
-    const host = hostInput.value.trim();
-    if (!host) {
-      healthDot.className = "dot err";
-      healthText.textContent = "请输入 IP 地址";
-      return;
-    }
-    connectBtn.disabled = true;
-    healthText.textContent = `连接 ${host}…`;
-    try {
-      const res = await fetch("/api/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ host }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const detail = data.detail || res.statusText;
-        throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
-      }
-      robot.robot_host = host;
-      if (typeof onConnected === "function") onConnected(host);
-      await refreshHealth();
+      const host = data.robot_host || robot.robot_host || robot.ip;
+      robotMeta.textContent = `agent ${data.agent || "?"} · ip ${host || "?"} · mode ${data.mode}`;
     } catch (err) {
       healthDot.className = "dot err";
-      healthText.textContent = `连接失败: ${err.message || err}`;
-    } finally {
-      connectBtn.disabled = false;
+      healthText.textContent = "health 请求失败";
+      showToast(String(err.message || err), { title: "健康检查失败", kind: "err" });
     }
   }
 
-  connectBtn.addEventListener("click", connectRobot);
-  hostInput.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter") {
-      ev.preventDefault();
-      connectRobot();
-    }
-  });
-
+  fillActions([]);
+  refreshAgents();
   refreshHealth();
   setInterval(refreshHealth, 5000);
+
+  return { refreshAgents, refreshHealth, fillActions, setStatus };
 }

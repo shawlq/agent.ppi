@@ -1,45 +1,36 @@
 # PuppyPi 家庭场景 3D Web 仿真
 
-Python FastAPI 托管页面，Three.js 渲染可 JSON 配置的客厅场景与机器狗；右上角支持焦点高度配置、指令列表与顺序执行队列。
+Python FastAPI 托管页面，Three.js 渲染客厅场景与机器狗。可接收 console/`sim_agent` 经 ROS 形接口投递的命令。
 
 ## 启动
 
 ```bash
 cd tests/sim
 pip install -r requirements.txt
-./service.sh          # 后台启动
-# ./service.sh run    # 前台
-# ./service.sh stop
-# ./service.sh status
+./service.sh          # 后台 :8765
 ```
 
-浏览器打开：<http://127.0.0.1:8765/>（可用 `HOST` / `PORT` 环境变量覆盖默认 `0.0.0.0:8765`）
+浏览器：<http://127.0.0.1:8765/>
 
-## 操作
+Three.js 已本地化到 `static/vendor/three@0.160.0/`（不依赖外网 CDN）。若仍无画面，打开开发者工具看 hint 条/`three.module.js` 是否 200，并确认 WebGL 未禁用。
 
-| 操作 | 说明 |
-|------|------|
-| 左键拖拽 | 绕焦点旋转视角 |
-| 滚轮 | 缩放 |
-| 双击地面 | 水平移动焦点（高度由右上角「焦点高度」决定，默认 1.7 m） |
-| 指令列表 `+` | 加入队列；左转/右转可填角度，其余参数框禁用；次数默认 1 |
-| 清空 | 丢弃尚未开始的排队项 |
+## 与 Console 联调
 
-碰撞：前进/后退/太空步时，正面撞墙或家具会停下；侧面擦碰会沿切向滑移并缓慢转向。半径与转向速率见 `configs/ui.json`。
+不依赖真机、不依赖系统 rosbridge：
 
-## 配置文件
+1. 启动本服务
+2. 启动 `tests/console`，加载 `sim_agent`
+3. Console 执行动作 → `POST /api/ros/command`（topic `/sim_dog/command`）→ 本页 WebSocket `/ws/commands` → `RobotDog.play`
 
-| 文件 | 作用 |
-|------|------|
-| `configs/scene_home.json` | 地板、墙、家具与机器狗初始位姿 |
-| `configs/actions.json` | 动作表（名称、函数名、耗时、参数元数据） |
-| `configs/ui.json` | 焦点高度、相机距离、步长等 UI 默认值 |
-
-家具 `type` 支持：`sofa` / `chair` / `table` / `coffee_table` / `bench` / `tv` / `cabinet` / `tea_set`。
+动作表优先读 [`src/agents/sim_agent/proxy/proxy.json`](../../src/agents/sim_agent/proxy/proxy.json)。
 
 ## API
 
-- `GET /` — 页面
-- `GET /api/scene` — 场景 JSON
-- `GET /api/actions` — 动作 JSON
-- `GET /api/ui` — UI JSON
+- `GET /api/health` — 健康检查（sim_agent connect 依赖）
+- `POST /api/ros/command` — `{ "topic": "/sim_dog/command", "data": { "function", "params", "cost_time_sec" } }`
+- `WS /ws/commands` — 向前端推送命令
+- `GET /api/scene` / `/api/actions` / `/api/ui`
+
+## 本地面板
+
+右侧指令列表仍可手动入队，用于单独调试动画。

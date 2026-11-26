@@ -85,6 +85,49 @@ async function main() {
     queue,
   });
 
+  // Receive ROS-shaped commands from console/sim_agent via local gateway.
+  function connectCommandSocket() {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const url = `${proto}://${location.host}/ws/commands`;
+    const ws = new WebSocket(url);
+    const bar = document.getElementById("hint-bar");
+
+    ws.onopen = () => {
+      if (bar) bar.textContent = "已连接命令通道 · /sim_dog/command";
+    };
+    ws.onmessage = (ev) => {
+      let msg;
+      try {
+        msg = JSON.parse(ev.data);
+      } catch {
+        return;
+      }
+      const fn = msg.function;
+      if (!fn) return;
+      const params = msg.params || {};
+      const cost = Number(msg.cost_time_sec) || 1;
+      const actionDef = (actionsConfig.actions || []).find((a) => a.function === fn) || {
+        action: fn,
+        function: fn,
+        cost_time_sec: cost,
+      };
+      queue.enqueue(actionDef, params, 1);
+      if (bar) bar.textContent = `远程指令: ${actionDef.action || fn}`;
+    };
+    ws.onclose = () => {
+      if (bar) bar.textContent = "命令通道断开 · 3s 后重连";
+      setTimeout(connectCommandSocket, 3000);
+    };
+    ws.onerror = () => {
+      try {
+        ws.close();
+      } catch {
+        /* ignore */
+      }
+    };
+  }
+  connectCommandSocket();
+
   function onResize() {
     const w = viewport.clientWidth;
     const h = Math.max(1, viewport.clientHeight);
