@@ -37,8 +37,10 @@ pip install -r requirements.txt
 ## 启动
 
 ```bash
-# 1) Qwen3.6 OpenAI-compatible（默认 :8000）
-# /home/atom/workdir/start_qwen36-35b-a3b-nvfp4.sh
+# 1) Qwen3.6 OpenAI-compatible（默认 :8000，uncensored）
+# /home/atom/workdir/workboard/notes/scripts/launcher/vllmstart_qwen36-35b-hauhau-uncensored.sh
+# 容器：vllm-qwen36-35b-hauhau-uncensored
+# 模型：HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive
 
 # 2) 仿真出图（用 sim_agent 时）
 ../sim/service.sh start
