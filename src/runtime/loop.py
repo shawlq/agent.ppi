@@ -114,9 +114,11 @@ class ThinkLoop:
             allowed_actions=sections["allowed_actions"],
         )
         llm_raw = await self.llm.complete(prompt)
-        valid, errors = self.validator.parse_and_validate(llm_raw)
+        valid, errors, reason = self.validator.parse_and_validate(llm_raw)
         for err in errors:
             logger.warning("validator: %s", err)
+        if reason:
+            logger.info("llm reason: %s", reason)
 
         if self.debug_hub is not None:
             self.debug_hub.emit_round(
@@ -132,6 +134,7 @@ class ThinkLoop:
                 llm_raw=llm_raw if isinstance(llm_raw, str) else str(llm_raw),
                 actions_valid=valid,
                 errors=errors,
+                reason=reason,
             )
 
         if not valid:
@@ -139,8 +142,9 @@ class ThinkLoop:
             return
 
         logger.info(
-            "executor replace n=%d functions=%s",
+            "executor replace n=%d reason=%s functions=%s",
             len(valid),
+            reason or "-",
             [v["action_def"].get("function") for v in valid],
         )
         await self.executor.replace(valid)

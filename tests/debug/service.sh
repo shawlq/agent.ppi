@@ -21,8 +21,8 @@ if [[ -z "$PYTHON_BIN" ]]; then
     exit 1
   fi
 fi
-if ! "$PYTHON_BIN" -c "import uvicorn" >/dev/null 2>&1; then
-  echo "uvicorn missing in $PYTHON_BIN" >&2
+if ! "$PYTHON_BIN" -c "import uvicorn, httpx" >/dev/null 2>&1; then
+  echo "uvicorn/httpx missing in $PYTHON_BIN" >&2
   echo "install: $PYTHON_BIN -m pip install -r \"$ROOT/requirements.txt\"" >&2
   exit 1
 fi

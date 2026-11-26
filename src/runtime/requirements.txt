@@ -1,1 +1,3 @@
+# ThinkLoop / RuntimeService / OpenAI-compat LLM·VLM / sim_agent 客户端
+# 安装：pip install -r requirements.txt
 httpx>=0.27.0

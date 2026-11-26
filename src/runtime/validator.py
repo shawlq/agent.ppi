@@ -55,6 +55,18 @@ def extract_json_object(text: str) -> dict[str, Any] | None:
         return None
 
 
+def extract_reason(text: str) -> str | None:
+    """Pull a short reason from `{reason, actions}` style LLM output."""
+    obj = extract_json_object(text)
+    if obj is None:
+        return None
+    for key in ("reason", "why", "rationale"):
+        val = obj.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return None
+
+
 class ActionValidator:
     def __init__(
         self,
@@ -73,13 +85,19 @@ class ActionValidator:
 
     def parse_and_validate(
         self, llm_text: str
-    ) -> tuple[list[dict[str, Any]], list[str]]:
-        """Return (valid items with action_def+params, error messages)."""
+    ) -> tuple[list[dict[str, Any]], list[str], str | None]:
+        """Return (valid items, errors, optional reason).
+
+        Accepts either a bare JSON array, or an object
+        ``{"reason": "...", "actions": [...]}`` (reason optional for
+        backward compatibility).
+        """
         errors: list[str] = []
+        reason = extract_reason(llm_text)
         raw = extract_json_array(llm_text)
         if raw is None:
-            errors.append("LLM output is not a JSON array")
-            return [], errors
+            errors.append("LLM output is not a JSON array/actions object")
+            return [], errors, reason
 
         valid: list[dict[str, Any]] = []
         for i, item in enumerate(raw):
@@ -127,4 +145,4 @@ class ActionValidator:
                 f"sequence shorter than min_actions={self.min_actions} "
                 f"(got {len(valid)}); still accepting"
             )
-        return valid, errors
+        return valid, errors, reason

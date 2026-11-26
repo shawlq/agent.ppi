@@ -43,4 +43,7 @@ class MockLLM:
             actions = [{"function": fn, "params": {}} for fn in chosen[:3]]
         else:
             actions = list(_MOCK_ACTIONS)
-        return json.dumps(actions, ensure_ascii=False)
+        return json.dumps(
+            {"reason": "mock: 按白名单挑前几个动作", "actions": actions},
+            ensure_ascii=False,
+        )

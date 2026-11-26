@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from src.runtime.validator import ActionValidator, extract_json_array
+from src.runtime.validator import ActionValidator, extract_json_array, extract_reason
 
 
 class ValidatorTests(unittest.TestCase):
@@ -30,16 +30,38 @@ class ValidatorTests(unittest.TestCase):
 
     def test_unknown_function_skipped(self) -> None:
         raw = '[{"function":"fly","params":{}},{"function":"stand","params":{}}]'
-        valid, errors = self.v.parse_and_validate(raw)
+        valid, errors, reason = self.v.parse_and_validate(raw)
         self.assertEqual(len(valid), 1)
         self.assertEqual(valid[0]["action_def"]["function"], "stand")
         self.assertTrue(any("unknown" in e for e in errors))
+        self.assertIsNone(reason)
 
     def test_number_param_coercion(self) -> None:
         raw = '[{"function":"forward","params":{"x":"3.5"}}]'
-        valid, errors = self.v.parse_and_validate(raw)
+        valid, errors, reason = self.v.parse_and_validate(raw)
         self.assertEqual(len(valid), 1)
         self.assertEqual(valid[0]["params"]["x"], 3.5)
+        self.assertIsNone(reason)
+
+    def test_object_with_reason_and_actions(self) -> None:
+        raw = (
+            '{"reason":"前方有人先站稳",'
+            '"actions":[{"function":"stand","params":{}},'
+            '{"function":"forward","params":{"x":2}}]}'
+        )
+        valid, errors, reason = self.v.parse_and_validate(raw)
+        self.assertEqual(reason, "前方有人先站稳")
+        self.assertEqual(len(valid), 2)
+        self.assertEqual(valid[0]["action_def"]["function"], "stand")
+        self.assertEqual(valid[1]["params"]["x"], 2.0)
+        self.assertEqual(errors, [])
+
+    def test_extract_reason(self) -> None:
+        self.assertEqual(
+            extract_reason('{"reason":"观察一下","actions":[]}'),
+            "观察一下",
+        )
+        self.assertIsNone(extract_reason('[{"function":"stand"}]'))
 
 
 if __name__ == "__main__":

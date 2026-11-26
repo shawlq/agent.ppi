@@ -26,6 +26,7 @@ class DebugSnapshot:
     context: dict[str, Any] = field(default_factory=dict)
     prompt: str = ""
     llm_raw: str = ""
+    reason: str = ""
     actions_valid: list[dict[str, Any]] = field(default_factory=list)
     actions_history: list[dict[str, Any]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -120,6 +121,7 @@ class DebugHub:
         llm_raw: str,
         actions_valid: list[dict[str, Any]],
         errors: list[str],
+        reason: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             self._round_id += 1
@@ -136,9 +138,11 @@ class DebugHub:
                 }
                 for a in actions_valid
             ]
+            reason_text = (reason or "").strip()
             hist_entry = {
                 "round_id": round_id,
                 "stamp": time.time(),
+                "reason": reason_text,
                 "actions": actions_brief,
             }
             self._actions_history.appendleft(hist_entry)
@@ -152,6 +156,7 @@ class DebugHub:
                 context=context,
                 prompt=prompt,
                 llm_raw=llm_raw,
+                reason=reason_text,
                 actions_valid=actions_brief,
                 actions_history=list(self._actions_history),
                 errors=list(errors),
