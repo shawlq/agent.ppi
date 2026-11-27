@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 HOST="${HOST:-0.0.0.0}"
-PORT="${PORT:-8767}"
+PORT="${PORT:-8768}"
 PID_FILE="${PID_FILE:-$ROOT/.uvicorn.pid}"
 LOG_FILE="${LOG_FILE:-$ROOT/.uvicorn.log}"
 

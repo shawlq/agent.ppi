@@ -8,10 +8,21 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      "three": "/static/vendor/three@0.160.0/build/three.module.js",
+      "three/addons/": "/static/vendor/three@0.160.0/examples/jsm/"
     }
   }
+  </script>
+  <script type="module">
+    window.addEventListener("error", (e) => {
+      const bar = document.getElementById("hint-bar");
+      if (bar && e.message) bar.textContent = `加载失败: ${e.message}`;
+    });
+    window.addEventListener("unhandledrejection", (e) => {
+      const bar = document.getElementById("hint-bar");
+      const msg = e.reason && (e.reason.message || String(e.reason));
+      if (bar && msg) bar.textContent = `加载失败: ${msg}`;
+    });
   </script>
 </head>
 <body>

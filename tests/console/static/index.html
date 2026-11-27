@@ -9,21 +9,26 @@
 <body>
   <div id="viewport">
     <img id="camera" alt="PuppyPi camera" />
-    <div id="camera-overlay" class="camera-overlay hidden">摄像头未连接</div>
+    <div id="camera-overlay" class="camera-overlay">请先加载 Agent</div>
+  </div>
+
+  <div id="agent-bar" class="agent-bar">
+    <label class="agent-label" for="agent-select">Agent</label>
+    <select id="agent-select" class="agent-select" aria-label="选择 Agent">
+      <option value="">选择 *_agent…</option>
+    </select>
+    <button id="agent-load-btn" class="btn-connect" type="button">加载</button>
   </div>
 
   <aside id="panel" class="panel">
     <section class="panel-section">
-      <h2>连接</h2>
-      <div class="connect-row">
-        <input id="robot-host" type="text" spellcheck="false" placeholder="192.168.1.9" autocomplete="off" />
-        <button id="connect-btn" class="btn-connect" type="button">连接</button>
-      </div>
+      <h2>状态</h2>
       <div id="health-line" class="health-line">
         <span id="health-dot" class="dot"></span>
-        <span id="health-text">检查中…</span>
+        <span id="health-text">未加载 Agent</span>
       </div>
       <p id="robot-meta" class="hint"></p>
+      <p id="action-status" class="hint action-status"></p>
     </section>
 
     <section class="panel-section">
@@ -46,7 +51,8 @@
     </section>
   </aside>
 
-  <div id="hint-bar" class="hint-bar">官方 ROS · /usb_cam/image_raw · runActionGroup / velocity</div>
+  <div id="toast-host" class="toast-host" aria-live="polite"></div>
+  <div id="hint-bar" class="hint-bar">加载 Agent → 选择动作 → 入队执行</div>
 
   <script type="module" src="/static/js/main.js"></script>
 </body>

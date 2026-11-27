@@ -10,7 +10,24 @@ PORT="${PORT:-8765}"
 PID_FILE="${PID_FILE:-$ROOT/.uvicorn.pid}"
 LOG_FILE="${LOG_FILE:-$ROOT/.uvicorn.log}"
 
-CMD=(uvicorn server:app --reload --host "$HOST" --port "$PORT")
+# Prefer active env's python -m uvicorn (bare `uvicorn` often missing in conda envs).
+PYTHON_BIN="${PYTHON_BIN:-}"
+if [[ -z "$PYTHON_BIN" ]]; then
+  if command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python)"
+  elif command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python3)"
+  else
+    echo "python not found; activate your env or set PYTHON_BIN" >&2
+    exit 1
+  fi
+fi
+if ! "$PYTHON_BIN" -c "import uvicorn" >/dev/null 2>&1; then
+  echo "uvicorn missing in $PYTHON_BIN" >&2
+  echo "install: $PYTHON_BIN -m pip install -r \"$ROOT/requirements.txt\"" >&2
+  exit 1
+fi
+CMD=("$PYTHON_BIN" -m uvicorn server:app --reload --host "$HOST" --port "$PORT")
 
 usage() {
   echo "Usage: $0 {start|stop|restart|status|run}"

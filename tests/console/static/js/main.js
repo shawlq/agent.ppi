@@ -29,9 +29,34 @@ function setupCamera() {
     img.src = `/api/camera/stream?t=${Date.now()}`;
   };
 
-  img.onload = () => overlay.classList.add("hidden");
+  img.onload = () => {
+    fetch("/api/robot")
+      .then((r) => r.json())
+      .then((robot) => {
+        if (robot.agent === "ppi_agent" && robot.mode !== "mock") {
+          overlay.classList.add("hidden");
+        } else if (robot.agent === "sim_agent") {
+          // MJPEG from sim head camera — hide overlay when bytes actually arrived.
+          overlay.classList.add("hidden");
+        } else if (!robot.agent) {
+          showError("请先加载 Agent");
+        } else {
+          showError("mock / 无摄像头流");
+        }
+      })
+      .catch(() => overlay.classList.add("hidden"));
+  };
   img.onerror = () => {
-    showError("摄像头未连接 · 将自动重试");
+    fetch("/api/robot")
+      .then((r) => r.json())
+      .then((robot) => {
+        if (robot.agent === "sim_agent") {
+          showError("请打开仿真页以生成摄像头画面");
+        } else {
+          showError("摄像头未连接 · 将自动重试");
+        }
+      })
+      .catch(() => showError("摄像头未连接 · 将自动重试"));
     setTimeout(reload, 3000);
   };
   reload();
@@ -39,26 +64,15 @@ function setupCamera() {
 }
 
 async function main() {
-  const [actionsRes, robotRes] = await Promise.all([
-    fetch("/api/actions"),
-    fetch("/api/robot"),
-  ]);
-  const actionsJson = await actionsRes.json();
-  const robot = await robotRes.json();
-  const actions = actionsJson.actions || [];
+  const camera = setupCamera();
 
   const queue = new ActionQueue({
-    play: async (fn, params) => {
-      await runAction(fn, params);
-    },
+    play: async (fn, params) => runAction(fn, params),
   });
 
-  const camera = setupCamera();
   setupUI({
-    actions,
-    robot,
     queue,
-    onConnected: () => camera.reload(),
+    onAgentLoaded: () => camera.reload(),
   });
 }
 
